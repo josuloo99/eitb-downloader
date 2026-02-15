@@ -221,10 +221,13 @@ def dowload_all(media_details: MediaDetails):
       if not os.path.exists(season_path):
          os.makedirs(season_path)
       for episode in season.episodes:
-         filename = f"{media_details.title}/Season {season.season_number}/Episode {episode.episode_number}"
-         download_video(media_details.platform, episode.slug, filename)
+         # Use episode slug as fallback if episode number is unknown
+         ep_num = episode.episode_number if episode.episode_number != 0 else episode.slug
+         filename = f"{ep_num}. {episode.title}"
+         file_path = f"{media_details.title}/Season {season.season_number}"
+         download_video(media_details.platform, episode.slug, file_path, filename)
    
-def download_video(domain, video_id, in_name=None):
+def download_video(domain, video_id, path = "./", in_name=None):
    """
    Downloads and decrypts video using N_m3u8DL-RE based on a specific URL structure.
    """
@@ -234,7 +237,7 @@ def download_video(domain, video_id, in_name=None):
    command = [
       M3U_DOWNLOADER_PATH,
       manifest_url,
-      "--save-dir", "./",
+      "--save-dir", path,
       "--save-name", name,
       "--key", DECRYPT_KEY,
       "--decryption-binary-path", MP4DECRYPTER_PATH,

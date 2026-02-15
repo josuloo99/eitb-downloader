@@ -99,4 +99,16 @@ if __name__ == "__main__":
          print("Aukera ez da baliozkoa")
       elif selected.media_type == "Movie" and choices[0] == "d":
          download_video(media_details.platform, media_details.slug, f"{media_details.title} [{media_details.production_year}]")
-      elif selected.media_type == "Movie" and choices[0] == "d":
+      elif selected.media_type == "Series" and choices[0] == "a":
+         dowload_all(media_details)
+      elif selected.media_type == "Series" and choices[0] == "d":
+         try:
+            season_number = int(choices[1])
+            episode_number = int(choices[2])
+         except:
+            print("Aukera ez da baliozkoa")
+         video_id = get_episode_slug(media_details, season_number, episode_number)
+         if video_id:
+            download_video(media_details.platform, video_id, in_name=f"{media_details.title} S{season_number}E{episode_number} [{media_details.production_year}]")
+         else:
+            print("Ez da kapituloa aurkitu")
