@@ -3,6 +3,8 @@ from term_image.image import from_url
 import subprocess
 import os
 from config import M3U_DOWNLOADER_PATH, MP4DECRYPTER_PATH, DECRYPT_KEY
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 
 eitb_platforms_api = {
    'etbon': 'https://etbon.eus/api/v1',
@@ -212,20 +214,26 @@ def get_episode_slug(media_details: MediaDetails, season_number: int, episode_nu
                return episode.slug
    return None
 
-def dowload_all(media_details: MediaDetails):
+def dowload_all(media_details: MediaDetails, max_workers: int = 3):
    if not os.path.exists(media_details.title):
       os.makedirs(media_details.title)
+   
+   download_tasks = []
    
    for season in media_details.seasons:
       season_path = f"{media_details.title}/Season {season.season_number}"
       if not os.path.exists(season_path):
          os.makedirs(season_path)
       for episode in season.episodes:
-         # Use episode slug as fallback if episode number is unknown
          ep_num = episode.episode_number if episode.episode_number != 0 else episode.slug
          filename = f"{ep_num}. {episode.title}"
          file_path = f"{media_details.title}/Season {season.season_number}"
-         download_video(media_details.platform, episode.slug, file_path, filename)
+         download_tasks.append((media_details.platform, episode.slug, file_path, filename))
+   
+   with ThreadPoolExecutor(max_workers=max_workers) as executor:
+      futures = [executor.submit(download_video, *task) for task in download_tasks]
+      for future in futures:
+         future.result()
    
 def download_video(domain, video_id, path = "./", in_name=None):
    """
