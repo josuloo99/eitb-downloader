@@ -1,6 +1,7 @@
 import requests
 from term_image.image import from_url
 import subprocess
+import os
 from config import M3U_DOWNLOADER_PATH, MP4DECRYPTER_PATH, DECRYPT_KEY
 
 eitb_platforms_api = {
@@ -46,11 +47,12 @@ class SeasonDetails:
       self.episodes = episodes
 
 class MediaDetails:
-   def __init__(self, id: int, title: str, media_type: str, description: str, platform: str, slug: str, media_url: str = None, seasons: SeasonDetails = None, age_rating: int = 0, audio_languages: list = None, subtitles: list = None):
+   def __init__(self, id: int, title: str, media_type: str, description: str, production_year: int, platform: str, slug: str, media_url: str = None, seasons: SeasonDetails = None, age_rating: int = 0, audio_languages: list = None, subtitles: list = None):
       self.id = id
       self.title = title
       self.media_type = media_type
       self.description = description
+      self.production_year = production_year
       self.platform = platform
       self.slug = slug
       self.image_url = media_url
@@ -63,6 +65,7 @@ class MediaDetails:
       print(f"Title: {self.title}")
       print(f"Type: {self.media_type}")
       print(f"Description: {self.description}")
+      print(f"Year: {self.production_year}")
       print(f"Platform: {self.platform}")
       print(f"Slug: {self.slug}")
       print(f"Age Rating: {self.age_rating}")
@@ -153,6 +156,7 @@ def get_details(data: SearchResult) -> MediaDetails:
 
    if media_info_json:
       # Common fields
+      production_year = int(media_info_json.get('production_year', 0))
       age_rating = media_info_json.get('age_rating', None)
       if age_rating is not None:
          age_rating = int(age_rating.get('age', None))
@@ -173,11 +177,7 @@ def get_details(data: SearchResult) -> MediaDetails:
             for episode in season.get('episodes', []):
                ep_title = episode.get('title', 'N/A')
                ep_description = episode.get('description', 'N/A') or 'N/A'
-               ep_number = episode.get('episode_number')
-               if ep_number:
-                  ep_number = int(ep_number)
-               else:
-                  ep_number = "?"
+               ep_number = int(episode.get('episode_number', 0))
                ep_slug = episode.get('slug', 'N/A')
                episode_details = EpisodeDetails(ep_title, ep_description, ep_number, season_number, ep_slug)
                episodes_list.append(episode_details)
@@ -199,17 +199,37 @@ def get_details(data: SearchResult) -> MediaDetails:
                label = language.get('label', 'N/A')
                subtitles.append(label)
 
-      return MediaDetails(id, title, media_type, description, platform, slug, media_url, seasons, age_rating, audio_languages, subtitles)
+      return MediaDetails(id, title, media_type, description, production_year, platform, slug, media_url, seasons, age_rating, audio_languages, subtitles)
 
    else:
       raise ValueError("Unsupported media type")
+   
+def get_episode_slug(media_details: MediaDetails, season_number: int, episode_number: int):
+   for season in media_details.seasons:
+      if season.season_number == season_number:
+         for episode in season.episodes:
+            if episode.episode_number == episode_number:
+               return episode.slug
+   return None
+
+def dowload_all(media_details: MediaDetails):
+   if not os.path.exists(media_details.title):
+      os.makedirs(media_details.title)
+   
+   for season in media_details.seasons:
+      season_path = f"{media_details.title}/Season {season.season_number}"
+      if not os.path.exists(season_path):
+         os.makedirs(season_path)
+      for episode in season.episodes:
+         filename = f"{media_details.title}/Season {season.season_number}/Episode {episode.episode_number}"
+         download_video(media_details.platform, episode.slug, filename)
    
 def download_video(domain, video_id, in_name=None):
    """
    Downloads and decrypts video using N_m3u8DL-RE based on a specific URL structure.
    """
    name = in_name if in_name else video_id
-   manifest_url = f"{domain}/manifests/{video_id}/eu/widevine/dash.mpd"
+   manifest_url = f"https://{domain}.eus/manifests/{video_id}/eu/widevine/dash.mpd"
 
    command = [
       M3U_DOWNLOADER_PATH,

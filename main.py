@@ -37,17 +37,17 @@ def interactive_search(
       end = min(start + page_size, len(results))
       page_results = results[start:end]
 
-      print(f"\n{'─'*50}")
-      print(f"Emaitzak {start+1}-{end} / {len(results)} (Orria {current_page+1}/{total_pages})")
-      print(f"{'─'*50}")
+      print(f"\n{'─'*60}")
+      print(f"Emaitzak {start+1}-{end} / {len(results)} (Orria {current_page+1}/{total_pages}) | KH: Keinu Hizkuntza")
+      print(f"{'─'*60}")
 
       for i, result in enumerate(page_results, start + 1):
-         if not result.sign_lang:
-            print(f"  [{i:2}] {result.title} ({result.media_type}) [{result.platform}]")
-         else:
-            print(f"  [{i:2}] {result.title} ({result.media_type}) [{result.platform}] (KH)")
+         print_text = f"  [{i:2}] {result.title} ({result.media_type}) {result.platform}"
+         if result.sign_lang:
+            print_text = print_text + (f" (KH)")
+         print(print_text)
 
-      print(f"{'─'*50}")
+      print(f"{'─'*60}")
       nav = []
       if current_page > 0:
          nav.append("[A]urrekoa")
@@ -77,6 +77,26 @@ if __name__ == "__main__":
    )
 
    if selected:
-      details = get_details(selected)
+      media_details = get_details(selected)
       render_image_from_url(selected.media_url)
-      details.print_pretty()
+      media_details.print_pretty()
+
+      print("\n")
+
+      download_options = []
+
+      if selected.media_type == "Movie":
+         download_options.append("[D] Deskargatu filma")
+      else:
+         download_options.append("[A] Deskargatu serie osoa")
+         download_options.append("[D <denboraldia> <kapitulua>] Deskargatu kapituloa (adibidez: D 1 2)")
+
+      print(f"  {' | '.join(download_options)}")
+
+      choices = input("\nAukera: ").strip().lower().split(" ")
+      
+      if not choices:
+         print("Aukera ez da baliozkoa")
+      elif selected.media_type == "Movie" and choices[0] == "d":
+         download_video(media_details.platform, media_details.slug, f"{media_details.title} [{media_details.production_year}]")
+      elif selected.media_type == "Movie" and choices[0] == "d":
