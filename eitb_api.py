@@ -1,5 +1,7 @@
 import requests
 from term_image.image import from_url
+import subprocess
+from config import M3U_DOWNLOADER_PATH, MP4DECRYPTER_PATH, DECRYPT_KEY
 
 eitb_platforms_api = {
    'etbon': 'https://etbon.eus/api/v1',
@@ -18,13 +20,14 @@ HEADERS = {
 }
 
 class SearchResult:
-   def __init__(self, id: int, title: str, media_type: str, description: str, platform: str, slug: str, media_url: str = None):
+   def __init__(self, id: int, title: str, media_type: str, description: str, platform: str, slug: str, sign_lang: bool, media_url: str = None):
       self.id = id
       self.title = title
       self.media_type = media_type
       self.description = description
       self.platform = platform
       self.slug = slug
+      self.sign_lang = sign_lang
       self.media_url = media_url
    def print_row(self):
       print(f"{self.title} | {self.media_type} | {self.description} | {self.platform} | {self.slug}")
@@ -115,9 +118,14 @@ def get_search_result_list(query: str, platform: str = None, page: int = 1, limi
          media_type = 'Series' if media_type == 'series' else 'Movie' if media_type == 'media' else media_type
          description = item.get('description', 'N/A') or 'N/A'
          slug = item.get('slug', 'N/A')
-         media_url = item.get('images', [])[1].get('file')
+         sign_lang = slug.endswith("-kh")
+         show_images = item.get('images', [])
+         if len(show_images) > 1:
+            media_url = show_images[1].get('file')
+         else:
+            media_url = show_images[0].get('file')
 
-         result = SearchResult(id, title, media_type, description, plat, slug, media_url)
+         result = SearchResult(id, title, media_type, description, plat, slug, sign_lang, media_url)
          searchResults.append(result)
    return searchResults
 
@@ -165,7 +173,11 @@ def get_details(data: SearchResult) -> MediaDetails:
             for episode in season.get('episodes', []):
                ep_title = episode.get('title', 'N/A')
                ep_description = episode.get('description', 'N/A') or 'N/A'
-               ep_number = int(episode.get('episode_number'))
+               ep_number = episode.get('episode_number')
+               if ep_number:
+                  ep_number = int(ep_number)
+               else:
+                  ep_number = "?"
                ep_slug = episode.get('slug', 'N/A')
                episode_details = EpisodeDetails(ep_title, ep_description, ep_number, season_number, ep_slug)
                episodes_list.append(episode_details)
@@ -191,3 +203,32 @@ def get_details(data: SearchResult) -> MediaDetails:
 
    else:
       raise ValueError("Unsupported media type")
+   
+def download_video(domain, video_id, in_name=None):
+   """
+   Downloads and decrypts video using N_m3u8DL-RE based on a specific URL structure.
+   """
+   name = in_name if in_name else video_id
+   manifest_url = f"{domain}/manifests/{video_id}/eu/widevine/dash.mpd"
+
+   command = [
+      M3U_DOWNLOADER_PATH,
+      manifest_url,
+      "--save-dir", "./",
+      "--save-name", name,
+      "--key", DECRYPT_KEY,
+      "--decryption-binary-path", MP4DECRYPTER_PATH,
+      "--auto-select",
+      "-mt",
+      "-M", "format=mp4",
+      "--del-after-done",
+      "--check-segments-count", "false"
+   ]
+
+   print(f"Processing: {name}...")
+   result = subprocess.run(command)
+
+   if result.returncode != 0:
+      print(f"ERROR: Something went wrong with {name}!")
+   
+   return result.returncode

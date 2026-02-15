@@ -7,8 +7,6 @@ DECRYPT_KEY=None
 from typing import Callable, Any
 
 def interactive_search(
-    search_fn: Callable[[str], list],
-    display_fn: Callable[[Any], str] = str,
     page_size: int = 10
 ):
    """
@@ -24,7 +22,7 @@ def interactive_search(
    if not search_term:
       return None
 
-   results = search_fn(search_term)
+   results = get_search_result_list(search_term)
 
    if not results:
       print("Ez da emaitzik aurkitu.")
@@ -44,7 +42,10 @@ def interactive_search(
       print(f"{'─'*50}")
 
       for i, result in enumerate(page_results, start + 1):
-         print(f"  [{i:2}] {display_fn(result)}")
+         if not result.sign_lang:
+            print(f"  [{i:2}] {result.title} ({result.media_type}) [{result.platform}]")
+         else:
+            print(f"  [{i:2}] {result.title} ({result.media_type}) [{result.platform}] (KH)")
 
       print(f"{'─'*50}")
       nav = []
@@ -72,8 +73,6 @@ def interactive_search(
 
 if __name__ == "__main__":
    selected = interactive_search(
-      search_fn=get_search_result_list,
-      display_fn=lambda r: f"{r.title} ({r.media_type}) [{r.platform}]",
       page_size=10
    )
 
