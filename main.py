@@ -89,26 +89,23 @@ if __name__ == "__main__":
          download_options.append("[D] Deskargatu filma")
       else:
          download_options.append("[A] Deskargatu serie osoa")
-         download_options.append("[D <denboraldia> <kapitulua>] Deskargatu kapituloa (adibidez: D 1 2)")
+         download_options.append("[D <denboraldia> <kapituluak>] Deskargatu kapitulua(k) (adibidez: D 1 1,2,3)")
 
       print(f"  {' | '.join(download_options)}")
 
       choices = input("\nAukera: ").strip().lower().split(" ")
-      
+
       if not choices:
          print("Aukera ez da baliozkoa")
       elif selected.media_type == "Movie" and choices[0] == "d":
          download_video(media_details.platform, media_details.slug, f"{media_details.title} [{media_details.production_year}]")
       elif selected.media_type == "Series" and choices[0] == "a":
-         dowload_all(media_details)
+         download_multiple(media_details)
       elif selected.media_type == "Series" and choices[0] == "d":
          try:
             season_number = int(choices[1])
-            episode_number = int(choices[2])
+            episode_str = choices[2]
+            episode_numbers = [int(e.strip()) for e in episode_str.split(',')]
+            download_multiple(media_details, selected_season=season_number, selected_episodes=episode_numbers)
          except:
             print("Aukera ez da baliozkoa")
-         video_id = get_episode_slug(media_details, season_number, episode_number)
-         if video_id:
-            download_video(media_details.platform, video_id, in_name=f"{media_details.title} S{season_number}E{episode_number} [{media_details.production_year}]")
-         else:
-            print("Ez da kapituloa aurkitu")

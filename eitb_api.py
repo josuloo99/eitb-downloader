@@ -205,7 +205,7 @@ def get_details(data: SearchResult) -> MediaDetails:
 
    else:
       raise ValueError("Unsupported media type")
-   
+
 def get_episode_slug(media_details: MediaDetails, season_number: int, episode_number: int):
    for season in media_details.seasons:
       if season.season_number == season_number:
@@ -214,27 +214,31 @@ def get_episode_slug(media_details: MediaDetails, season_number: int, episode_nu
                return episode.slug
    return None
 
-def dowload_all(media_details: MediaDetails, max_workers: int = 3):
+def download_multiple(media_details: MediaDetails, selected_season: int = None, selected_episodes: list = None, max_workers: int = 3):
    if not os.path.exists(media_details.title):
       os.makedirs(media_details.title)
-   
+
    download_tasks = []
-   
+
    for season in media_details.seasons:
+      if selected_season and season.season_number != selected_season:
+         continue
       season_path = f"{media_details.title}/Season {season.season_number}"
       if not os.path.exists(season_path):
          os.makedirs(season_path)
       for episode in season.episodes:
+         if selected_episodes and episode.episode_number not in selected_episodes:
+            continue
          ep_num = episode.episode_number if episode.episode_number != 0 else episode.slug
          filename = f"{ep_num}. {episode.title}"
          file_path = f"{media_details.title}/Season {season.season_number}"
          download_tasks.append((media_details.platform, episode.slug, file_path, filename))
-   
+
    with ThreadPoolExecutor(max_workers=max_workers) as executor:
       futures = [executor.submit(download_video, *task) for task in download_tasks]
       for future in futures:
          future.result()
-   
+
 def download_video(domain, video_id, path = "./", in_name=None):
    """
    Downloads and decrypts video using N_m3u8DL-RE based on a specific URL structure.
@@ -261,5 +265,5 @@ def download_video(domain, video_id, path = "./", in_name=None):
 
    if result.returncode != 0:
       print(f"ERROR: Something went wrong with {name}!")
-   
+
    return result.returncode
